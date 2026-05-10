@@ -1,21 +1,268 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect } from "react";
 import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = "https://hoqnvkjdvihczssmcymh.supabase.co";
 const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImhvcW52a2pkdmloY3pzc21jeW1oIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzgzNTY4NTksImV4cCI6MjA5MzkzMjg1OX0.cdOpIQPe6YBwzE3IrKA3hSKwvyh9ofi3ph7mLB10nYE";
 const supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
-const C = { bg:"#08090d",surface:"#0f1117",card:"#141720",border:"#1e2330",accent:"#4f8ef7",accentGlow:"#4f8ef720",green:"#34d399",yellow:"#fbbf24",red:"#f87171",text:"#eef0f6",muted:"#4a5568",soft:"#94a3b8" };
-const priorityConfig = { high:{color:C.red,label:"High",dot:"●"}, medium:{color:C.yellow,label:"Medium",dot:"●"}, low:{color:C.green,label:"Low",dot:"●"} };
-const statusConfig = { "open":{color:C.accent,label:"Open",bg:"#4f8ef715"}, "in-progress":{color:C.yellow,label:"In Progress",bg:"#fbbf2415"}, "resolved":{color:C.green,label:"Resolved",bg:"#34d39915"}, "closed":{color:C.muted,label:"Closed",bg:"#4a556815"} };
+const C = {bg:"#08090d",surface:"#0f1117",card:"#141720",border:"#1e2330",accent:"#4f8ef7",accentGlow:"#4f8ef720",green:"#34d399",yellow:"#fbbf24",red:"#f87171",text:"#eef0f6",muted:"#4a5568",soft:"#94a3b8"};
+const priorityConfig = {high:{color:"#f87171",label:"High",dot:"●"},medium:{color:"#fbbf24",label:"Medium",dot:"●"},low:{color:"#34d399",label:"Low",dot:"●"}};
+const statusConfig = {"open":{color:"#4f8ef7",label:"Open",bg:"#4f8ef715"},"in-progress":{color:"#fbbf24",label:"In Progress",bg:"#fbbf2415"},"resolved":{color:"#34d399",label:"Resolved",bg:"#34d39915"},"closed":{color:"#4a5568",label:"Closed",bg:"#4a556815"}};
 const categories = ["Network","Hardware","Software","Account","Email","Other","General"];
 
-function timeAgo(d){const diff=Date.now()-new Date(d).getTime();const m=Math.floor(diff/60000);if(m<60)return `${m}m ago`;const h=Math.floor(m/60);if(h<24)return `${h}h ago`;return `${Math.floor(h/24)}d ago`;}
-function Badge({status}){const cfg=statusConfig[status]||statusConfig["open"];return(<span style={{background:cfg.bg,color:cfg.color,border:`1px solid ${cfg.color}40`,borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"monospace"}}>{cfg.label}</span>);}
-function Spinner(){return(<div style={{width:18,height:18,border:`2px solid ${C.border}`,borderTop:`2px solid ${C.accent}`,borderRadius:"50%",animation:"spin 0.7s linear infinite",display:"inline-block"}}/>);}
-function Toast({msg,type}){if(!msg)return null;return(<div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:type==="error"?C.red:C.green,color:"#fff",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:600,zIndex:9999}}>{msg}</div>);}
-function AuthScreen(){const[mode,setMode]=useState("login");const[email,setEmail]=useState("");const[password,setPassword]=useState("");const[name,setName]=useState("");const[loading,setLoading]=useState(false);const[error,setError]=useState("");const[msg,setMsg]=useState("");const inp={width:"100%",background:C.surface,border:`1px solid ${C.border}`,borderRadius:10,color:C.text,fontSize:14,padding:"12px 14px",boxSizing:"border-box",fontFamily:"inherit",outline:"none"};const handleSubmit=async()=>{setError("");setLoading(true);try{if(mode==="login"){const{data,error}=await supabase.auth.signInWithPassword({email,password});if(error)throw error;}else{const{data,error}=await supabase.auth.signUp({email,password});if(error)throw error;if(data.user){const orgRes=await supabase.from("organizations").select("id").limit(1).single();const orgId=orgRes.data?.id;if(orgId){await supabase.from("agents").insert({user_id:data.user.id,organization_id:orgId,full_name:name||email.split("@")[0],email,role:"admin"});}setMsg("Account created! Check email to confirm.");setMode("login");}}}catch(e){setError(e.message);}setLoading(false);};return(<div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"'Syne','Segoe UI',sans-serif",padding:20}}><style>{`@keyframes spin{to{transform:rotate(360deg)}}`}</style><div style={{width:"100%",maxWidth:400,background:C.card,border:`1px solid ${C.border}`,borderRadius:20,padding:36}}><div style={{textAlign:"center",marginBottom:32}}><div style={{fontSize:28,fontWeight:800,color:C.text}}><span style={{color:C.accent}}>⬡</span> DeskFlow</div><div style={{fontSize:14,color:C.muted,marginTop:6}}>{mode==="login"?"Sign in to your help desk":"Create your agent account"}</div></div>{msg&&<div style={{background:"#34d39915",color:C.green,borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16}}>{msg}</div>}{error&&<div style={{background:"#f8717115",color:C.red,borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16}}>{error}</div>}<div style={{display:"flex",flexDirection:"column",gap:14}}>{mode==="signup"&&<input style={inp} placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/>}<input style={inp} type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)}/><input style={inp} type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/><button onClick={handleSubmit} disabled={loading} style={{background:C.accent,border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:15,padding:"13px",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>{loading&&<Spinner/>}{mode==="login"?"Sign In":"Create Account"}</button><div style={{textAlign:"center",fontSize:13,color:C.muted}}>{mode==="login"?"No account?":"Already have one?"}{" "}<span onClick={()=>{setMode(mode==="login"?"signup":"login");setError("");setMsg("");}} style={{color:C.accent,cursor:"pointer",fontWeight:600}}>{mode==="login"?"Sign up":"Sign in"}</span></div></div></div></div>);}
+function timeAgo(d){const diff=Date.now()-new Date(d).getTime();const m=Math.floor(diff/60000);if(m<60)return m+"m ago";const h=Math.floor(m/60);if(h<24)return h+"h ago";return Math.floor(h/24)+"d ago";}
 
-function NewTicketModal({orgId,agentId,onClose,onCreated}){const[form,setForm]=useState({title:"",customerName:"",customerEmail:"",priority:"medium",category:"General",description:""});const[loading,setLoading]=useState(false);const[error,setError]=useState("");const set=(k,v)=>setForm(f=>({...f,[k]:v}));const inp={width:"100%",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,fontSize:13,padding:"10px 12px",boxSizing:"border-box",fontFamily:"inherit",outline:"none"};const lbl={fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5,display:"block"};const handleSubmit=async()=>{if(!form.title||!form.customerName||!form.customerEmail){setError("Title, name and email required.");return;}setLoading(true);setError("");try{const{data:cust,error:ce}=await supabase.from("customers").upsert({organization_id:orgId,full_name:form.customerName,email:form.customerEmail},{onConflict:"organization_id,email"}).select("id").single();if(ce)throw ce;const{data:ticket,error:te}=await supabase.from("tickets").insert({organization_id:orgId,customer_id:cust.id,assigned_to:agentId,title:form.title,description:form.description,category:form.category,priority:form.priority,status:"open"}).select().single();if(te)throw te;onCreated(ticket);onClose();}catch(e){setError(e.message);}setLoading(false);};return(<div style={{position:"fixed",inset:0,background:"#00000088",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:16,width:"100%",maxWidth:500,maxHeight:"90vh",overflow:"auto",padding:28}}><div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}><div style={{fontWeight:800,fontSize:17,color:C.text}}>New Support Ticket</div><button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer"}}>×</button></div>{error&&<div style={{background:"#f8717115",color:C.red,borderRadius:8,padding:"8px 12px",fontSize:13,marginBottom:14}}>{error}</div>}<div style={{display:"flex",flexDirection:"column",gap:14}}><div><label style={lbl}>Issue Title *</label><input style={inp} value={form.title} onChange={e=>set("title",e.target.value)} placeholder="Brief description"/></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><div><label style={lbl}>Customer Name *</label><input style={inp} value={form.customerName} onChange={e=>set("customerName",e.target.value)} placeholder="Full name"/></div><div><label style={lbl}>Email *</label><input style={inp} value={form.customerEmail} onChange={e=>set("customerEmail",e.target.value)} placeholder="email@co.com"/></div></div><div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}><div><label style={lbl}>Category</label><select style={inp} value={form.category} onChange={e=>set("category",e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select></div><div><label style={lbl}>Priority</label><select style={inp} value={form.priority} onChange={e=>set("priority",e.target.value)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div></div><div><label style={lbl}>Description</label><textarea style={{...inp,resize:"vertical"}} rows={3} value={form.description} onChange={e=>set("description",e.target.value)} placeholder="Details..."/></div><div style={{display:"flex",gap:10,marginTop:6}}><button onClick={onClose} style={{flex:1,padding:"11px",background:"transparent",border:`1px solid ${C.border}`,borderRadius:8,color:C.muted,fontWeight:600,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Cancel</button><button onClick={handleSubmit} disabled={loading} style={{flex:2,padding:"11px",background:C.accent,border:"none",borderRadius:8,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>{loading&&<Spinner/>}Submit Ticket</button></div></div></div></div>);function TicketDetail({ticket,onClose,onUpdated}){const[notes,setNotes]=useState([]);const[note,setNote]=useState("");const[saving,setSaving]=useState(false);useEffect(()=>{supabase.from("ticket_notes").select("*").eq("ticket_id",ticket.id).order("created_at").then(({data})=>setNotes(data||[]));},[ticket.id]);const updateStatus=async(status)=>{const{data,error}=await supabase.from("tickets").update({status,resolved_at:status==="resolved"?new Date().toISOString():null}).eq("id",ticket.id).select().single();if(!error)onUpdated(data);};const addNote=async()=>{if(!note.trim())return;setSaving(true);const{data}=await supabase.from("ticket_notes").insert({ticket_id:ticket.id,body:note,is_internal:true}).select().single();if(data)setNotes(prev=>[...prev,data]);setNote("");setSaving(false);};return(<div style={{width:360,minWidth:360,background:C.card,borderLeft:`1px solid ${C.border}`,display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}><div style={{padding:"18px 18px 14px",borderBottom:`1px solid ${C.border}`,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}><div><div style={{fontFamily:"monospace",fontSize:11,color:C.accent,marginBottom:3}}>TKT-{String(ticket.ticket_number).padStart(4,"0")}</div><div style={{fontWeight:700,fontSize:15,color:C.text,lineHeight:1.3,maxWidth:280}}>{ticket.title}</div></div><button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:20,cursor:"pointer"}}>×</button></div><div style={{flex:1,overflowY:"auto",padding:18,display:"flex",flexDirection:"column",gap:16}}><div style={{background:C.surface,borderRadius:10,padding:12,border:`1px solid ${C.border}`}}><div style={{fontSize:10,color:C.muted,marginBottom:8,fontWeight:700,textTransform:"uppercase"}}>Customer</div><div style={{fontWeight:600,color:C.text,fontSize:14}}>{ticket.customer_name||"—"}</div><div style={{fontSize:12,color:C.muted,marginTop:2}}>{ticket.customer_email||"—"}</div></div>{ticket.description&&<div><div style={{fontSize:10,color:C.muted,marginBottom:6,fontWeight:700,textTransform:"uppercase"}}>Description</div><div style={{fontSize:13,color:C.soft,lineHeight:1.7,background:C.surface,borderRadius:10,padding:12,border:`1px solid ${C.border}`}}>{ticket.description}</div></div>}<div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>{[["Category",ticket.category],["Priority",priorityConfig[ticket.priority]?.label],["Created",timeAgo(ticket.created_at)]].map(([l,v])=>(<div key={l} style={{background:C.surface,borderRadius:8,padding:"9px 11px",border:`1px solid ${C.border}`}}><div style={{fontSize:10,color:C.muted,marginBottom:2,textTransform:"uppercase"}}>{l}</div><div style={{fontSize:13,color:C.text,fontWeight:600}}>{v}</div></div>))}</div><div><div style={{fontSize:10,color:C.muted,marginBottom:8,fontWeight:700,textTransform:"uppercase"}}>Update Status</div><div style={{display:"flex",gap:6}}>{["open","in-progress","resolved"].map(s=>(<button key={s} onClick={()=>updateStatus(s)} style={{flex:1,padding:"7px 4px",borderRadius:8,border:`1px solid ${ticket.status===s?statusConfig[s].color:C.border}`,background:ticket.status===s?statusConfig[s].bg:"transparent",color:ticket.status===s?statusConfig[s].color:C.muted,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{statusConfig[s].label}</button>))}</div></div><div><div style={{fontSize:10,color:C.muted,marginBottom:8,fontWeight:700,textTransform:"uppercase"}}>Notes</div>{notes.map(n=>(<div key={n.id} style={{background:C.surface,borderRadius:8,padding:"9px 11px",border:`1px solid ${C.border}`,fontSize:13,color:C.text,marginBottom:8}}><div>{n.body}</div><div style={{fontSize:11,color:C.muted,marginTop:4}}>{timeAgo(n.created_at)}</div></div>))}<textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Add a note..." rows={3} style={{width:"100%",background:C.surface,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,fontSize:13,padding:"9px 11px",resize:"none",boxSizing:"border-box",fontFamily:"inherit",outline:"none"}}/><button onClick={addNote} disabled={saving} style={{marginTop:8,width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,padding:"10px",cursor:"pointer",fontFamily:"inherit"}}>{saving?"Saving...":"Save Note"}</button></div></div></div>);}
+function Badge({status}){const cfg=statusConfig[status]||statusConfig["open"];return <span style={{background:cfg.bg,color:cfg.color,border:"1px solid "+cfg.color+"40",borderRadius:20,padding:"2px 10px",fontSize:11,fontWeight:700,letterSpacing:"0.06em",textTransform:"uppercase",fontFamily:"monospace"}}>{cfg.label}</span>;}
 
-export default function App(){const[session,setSession]=useState(null);const[agent,setAgent]=useState(null);const[org,setOrg]=useState(null);const[tickets,setTickets]=useState([]);const[selected,setSelected]=useState(null);const[loading,setLoading]=useState(true);const[showNew,setShowNew]=useState(false);const[filter,setFilter]=useState("all");const[search,setSearch]=useState("");const[view,setView]=useState("dashboard");const[toast,setToast]=useState({msg:"",type:"success"});const showToast=(msg,type="success")=>{setToast({msg,type});setTimeout(()=>setToast({msg:"",type:"success"}),3000);};useEffect(()=>{supabase.auth.getSession().then(({data})=>{setSession(data.session);if(data.session)loadAgent(data.session.user.id);else setLoading(false);});const{data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>{setSession(s);if(s)loadAgent(s.user.id);else{setAgent(null);setOrg(null);setLoading(false);}});return()=>subscription.unsubscribe();},[]);const loadAgent=async(userId)=>{const{data}=await supabase.from("agents").select("*, organizations(*)").eq("user_id",userId).single();if(data){setAgent(data);setOrg(data.organizations);const{data:t}=await supabase.from("tickets_full").select("*").eq("organization_id",data.organizations.id).order("created_at",{ascending:false});setTickets(t||[]);}setLoading(false);};const filtered=tickets.filter(t=>{const mf=filter==="all"||t.status===filter||t.priority===filter;const ms=!search||t.title?.toLowerCase().includes(search.toLowerCase())||t.customer_name?.toLowerCase().includes(search.toLowerCase());return mf&&ms;});const stats={total:tickets.length,open:tickets.filter(t=>t.status==="open").length,inProgress:tickets.filter(t=>t.status==="in-progress").length,resolved:tickets.filter(t=>t.status==="resolved").length,urgent:tickets.filter(t=>t.priority==="high"&&t.status!=="resolved").length};if(loading)return(<div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{textAlign:"center",color:C.text,fontFamily:"sans-serif"}}><div style={{fontSize:28,fontWeight:800,marginBottom:16}}><span style={{color:C.accent}}>⬡</span> DeskFlow</div><Spinner/></div></div>);if(!session)return <AuthScreen/>;if(!agent)return(<div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",color:C.text,fontFamily:"sans-serif",flexDirection:"column",gap:16}}><div style={{fontSize:18,fontWeight:700}}>Setting up...</div><button onClick={()=>supabase.auth.signOut()} style={{background:C.surface,border:`1px solid ${C.border}`,color:C.soft,borderRadius:8,padding:"8px 16px",cursor:"pointer"}}>Sign out</button></div>);const navBtn=(label,v)=>(<button onClick={()=>setView(v)} style={{background:view===v?C.accentGlow:"transparent",border:view===v?`1px solid ${C.accent}40`:"1px solid transparent",color:view===v?C.accent:C.muted,borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{label}</button>);return(<div style={{background:C.bg,minHeight:"100vh",color:C.text,fontFamily:"'Syne','Segoe UI',sans-serif",display:"flex",flexDirection:"column"}}><style>{`@keyframes spin{to{transform:rotate(360deg)}}*{box-sizing:border-box}`}</style><div style={{borderBottom:`1px solid ${C.border}`,padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:54,background:C.surface,flexShrink:0}}><div style={{display:"flex",alignItems:"center",gap:16}}><div style={{fontWeight:800,fontSize:17,color:C.text}}><span style={{color:C.accent}}>⬡</span> DeskFlow</div><div style={{display:"flex",gap:4}}>{navBtn("Dashboard","dashboard")}{navBtn("Tickets","tickets")}</div></div><div style={{display:"flex",alignItems:"center",gap:10}}>{stats.urgent>0&&<div style={{background:`${C.red}18`,border:`1px solid ${C.red}40`,color:C.red,borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700}}>⚠ {stats.urgent} urgent</div>}<button onClick={()=>setShowNew(true)} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,padding:"7px 14px",cursor:"pointer",fontFamily:"inherit"}}>+ New Ticket</button><div style={{width:32,height:32,borderRadius:"50%",background:C.accentGlow,border:`1px solid ${C.accent}40`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.accent,cursor:"pointer"}} onClick={()=>supabase.auth.signOut()}>{agent.full_name?.[0]?.toUpperCase()||"A"}</div></div></div><div style={{flex:1,overflow:"hidden"}}>{view==="dashboard"&&(<div style={{padding:"24px 28px",maxWidth:960,margin:"0 auto"}}><div style={{marginBottom:24}}><div style={{fontSize:20,fontWeight:800,color:C.text}}>Welcome back, {agent.full_name?.split(" ")[0]} 👋</div><div style={{color:C.muted,fontSize:13,marginTop:2}}>{org?.name}</div></div><div style={{display:"flex",gap:12,flexWrap:"wrap",marginBottom:28}}>{[{label:"Total",value:stats.total,icon:"🎫",color:C.accent},{label:"Open",value:stats.open,icon:"📬",color:C.accent},{label:"In Progress",value:stats.inProgress,icon:"⚙️",color:C.yellow},{label:"Resolved",value:stats.resolved,icon:"✅",color:C.green}].map(s=>(<div key={s.label} style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,padding:"18px 22px",display:"flex",alignItems:"center",gap:14,flex:1,minWidth:130}}><div style={{width:42,height:42,borderRadius:10,background:`${s.color}15`,border:`1px solid ${s.color}30`,display:"flex",alignItems:"center",justifyContent:"center",fontSize:18}}>{s.icon}</div><div><div style={{fontSize:26,fontWeight:800,color:C.text,lineHeight:1,fontFamily:"monospace"}}>{s.value}</div><div style={{fontSize:12,color:C.muted,marginTop:2,fontWeight:600}}>{s.label}</div></div></div>))}</div><div style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:12,overflow:"hidden"}}><div style={{padding:"14px 18px",borderBottom:`1px solid ${C.border}`,fontWeight:800,fontSize:14,display:"flex",justifyContent:"space-between"}}>Recent Tickets<button onClick={()=>setView("tickets")} style={{background:"none",border:"none",color:C.accent,fontSize:13,cursor:"pointer",fontWeight:700}}>View all →</button></div>{tickets.filter(t=>t.status!=="resolved").slice(0,5).map(t=>(<div key={t.id} onClick={()=>{setSelected(t);setView("tickets");}} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 80px",gap:12,padding:"12px 18px",borderBottom:`1px solid ${C.border}`,cursor:"pointer"}} onMouseEnter={e=>e.currentTarget.style.background=C.surface} onMouseLeave={e=>e.currentTarget.style.background="transparent"}><div><div style={{fontWeight:600,fontSize:13,color:C.text}}>{t.title}</div><div style={{fontSize:11,color:C.muted,marginTop:1}}>{t.customer_name}</div></div><div style={{display:"flex",alignItems:"center"}}><Badge status={t.status}/></div><div style={{display:"flex",alignItems:"center",fontSize:12,color:priorityConfig[t.priority]?.color,fontWeight:700}}>{priorityConfig[t.priority]?.label}</div><div style={{display:"flex",alignItems:"center",justifyContent:"flex-end",fontSize:11,color:C.muted}}>{timeAgo(t.created_at)}</div></div>))}{tickets.filter(t=>t.status!=="resolved").length===0&&<div style={{padding:32,textAlign:"center",color:C.muted}}>🎉 No open tickets!</div>}</div></div>)}{view==="tickets"&&(<div style={{display:"flex",height:"calc(100vh - 54px)",overflow:"hidden"}}><div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}><div style={{padding:"12px 18px",borderBottom:`1px solid ${C.border}`,display:"flex",gap:8,alignItems:"center",background:C.surface,flexWrap:"wrap"}}><input value={search} onChange={e=>setSearch(e.target.value)} placeholder="Search..." style={{background:C.card,border:`1px solid ${C.border}`,borderRadius:8,color:C.text,fontSize:13,padding:"7px 12px",width:180,outline:"none",fontFamily:"inherit"}}/>{[["all","All"],["open","Open"],["in-progress","In Progress"],["resolved","Resolved"],["high","Urgent"]].map(([v,l])=>(<button key={v} onClick={()=>setFilter(v)} style={{background:filter===v?C.accent:"transparent",border:`1px solid ${filter===v?C.accent:C.border}`,color:filter===v?"#fff":C.muted,borderRadius:6,padding:"5px 11px",fontSize:12,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{l}</button>))}<div style={{marginLeft:"auto",fontSize:12,color:C.muted}}>{filtered.length} tickets</div></div><div style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 80px",gap:12,padding:"9px 18px",borderBottom:`1px solid ${C.border}`,fontSize:10,color:C.muted,fontWeight:700,textTransform:"uppercase",background:C.surface}}><span>Ticket</span><span>Category</span><span>Status</span><span>Priority</span><span style={{textAlign:"right"}}>Age</span></div><div style={{flex:1,overflowY:"auto"}}>{filtered.length===0?<div style={{padding:40,textAlign:"center",color:C.muted}}>No tickets found</div>:filtered.map(t=>(<div key={t.id} onClick={()=>setSelected(t)} style={{display:"grid",gridTemplateColumns:"2fr 1fr 1fr 1fr 80px",gap:12,padding:"13px 18px",borderBottom:`1px solid ${C.border}`,cursor:"pointer",borderLeft:selected?.id===t.id?`3px solid ${C.accent}`:"3px solid transparent",background:selected?.id===t.id?`${C.accent}08`:"transparent",alignItems:"center"}} onMouseEnter={e=>{if(selected?.id!==t.id)e.currentTarget.style.background=C.surface;}} onMouseLeave={e=>{if(selected?.id!==t.id)e.currentTarget.style.background="transparent";}}><div><div style={{fontWeight:600,color:C.text,fontSize:13,marginBottom:1}}>{t.title}</div><div style={{fontSize:11,color:C.muted}}>{t.customer_name} · <span style={{fontFamily:"monospace",color:C.accent}}>TKT-{String(t.ticket_number).padStart(4,"0")}</span></div></div><div style={{fontSize:12,color:C.muted}}>{t.category}</div><div><Badge status={t.status}/></div><div style={{fontSize:12,color:priorityConfig[t.priority]?.color,fontWeight:700}}>{priorityConfig[t.priority]?.dot} {priorityConfig[t.priority]?.label}</div><div style={{fontSize:11,color:C.muted,textAlign:"right"}}>{timeAgo(t.created_at)}</div></div>))}</div></div>{selected&&<TicketDetail ticket={tickets.find(t=>t.id===selected.id)||selected} onClose={()=>setSelected(null)} onUpdated={updated=>{setTickets(prev=>prev.map(t=>t.id===updated.id?{...t,...updated}:t));setSelected(prev=>prev?.id===updated.id?{...prev,...updated}:prev);showToast("Updated!");}}/>}</div>)}</div>{showNew&&org&&<NewTicketModal orgId={org.id} agentId={agent.id} onClose={()=>setShowNew(false)} onCreated={ticket=>{setTickets(prev=>[ticket,...prev]);setShowNew(false);showToast("Ticket created!");}}/>}<Toast msg={toast.msg} type={toast.type}/></div>);}}
+function Spinner(){return <div style={{width:18,height:18,border:"2px solid #1e2330",borderTop:"2px solid #4f8ef7",borderRadius:"50%",animation:"spin 0.7s linear infinite",display:"inline-block"}}/>;}
+
+function Toast({msg,type}){if(!msg)return null;return <div style={{position:"fixed",bottom:24,left:"50%",transform:"translateX(-50%)",background:type==="error"?"#f87171":"#34d399",color:"#fff",borderRadius:10,padding:"10px 20px",fontSize:13,fontWeight:600,zIndex:9999}}>{msg}</div>;}
+
+function AuthScreen(){
+  const[mode,setMode]=useState("login");
+  const[email,setEmail]=useState("");
+  const[password,setPassword]=useState("");
+  const[name,setName]=useState("");
+  const[loading,setLoading]=useState(false);
+  const[error,setError]=useState("");
+  const[msg,setMsg]=useState("");
+  const inp={width:"100%",background:C.surface,border:"1px solid "+C.border,borderRadius:10,color:C.text,fontSize:14,padding:"12px 14px",boxSizing:"border-box",fontFamily:"inherit",outline:"none"};
+  const handleSubmit=async()=>{
+    setError("");setLoading(true);
+    try{
+      if(mode==="login"){
+        const{error}=await supabase.auth.signInWithPassword({email,password});
+        if(error)throw error;
+      }else{
+        const{data,error}=await supabase.auth.signUp({email,password});
+        if(error)throw error;
+        if(data.user){
+          const orgRes=await supabase.from("organizations").select("id").limit(1).single();
+          const orgId=orgRes.data?.id;
+          if(orgId){await supabase.from("agents").insert({user_id:data.user.id,organization_id:orgId,full_name:name||email.split("@")[0],email,role:"admin"});}
+          setMsg("Account created! Check email to confirm.");setMode("login");
+        }
+      }
+    }catch(e){setError(e.message);}
+    setLoading(false);
+  };
+  return(
+    <div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"sans-serif",padding:20}}>
+      <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
+      <div style={{width:"100%",maxWidth:400,background:C.card,border:"1px solid "+C.border,borderRadius:20,padding:36}}>
+        <div style={{textAlign:"center",marginBottom:32}}>
+          <div style={{fontSize:28,fontWeight:800,color:C.text}}><span style={{color:C.accent}}>⬡</span> DeskFlow</div>
+          <div style={{fontSize:14,color:C.muted,marginTop:6}}>{mode==="login"?"Sign in to your help desk":"Create your agent account"}</div>
+        </div>
+        {msg&&<div style={{background:"#34d39915",color:C.green,borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16}}>{msg}</div>}
+        {error&&<div style={{background:"#f8717115",color:C.red,borderRadius:8,padding:"10px 14px",fontSize:13,marginBottom:16}}>{error}</div>}
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          {mode==="signup"&&<input style={inp} placeholder="Full name" value={name} onChange={e=>setName(e.target.value)}/>}
+          <input style={inp} type="email" placeholder="Email address" value={email} onChange={e=>setEmail(e.target.value)}/>
+          <input style={inp} type="password" placeholder="Password" value={password} onChange={e=>setPassword(e.target.value)} onKeyDown={e=>e.key==="Enter"&&handleSubmit()}/>
+          <button onClick={handleSubmit} disabled={loading} style={{background:C.accent,border:"none",borderRadius:10,color:"#fff",fontWeight:700,fontSize:15,padding:"13px",cursor:"pointer",fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
+            {loading&&<Spinner/>}{mode==="login"?"Sign In":"Create Account"}
+          </button>
+          <div style={{textAlign:"center",fontSize:13,color:C.muted}}>
+            {mode==="login"?"No account?":"Already have one?"}{" "}
+            <span onClick={()=>{setMode(mode==="login"?"signup":"login");setError("");setMsg("");}} style={{color:C.accent,cursor:"pointer",fontWeight:600}}>{mode==="login"?"Sign up":"Sign in"}</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function NewTicketModal({orgId,agentId,onClose,onCreated}){
+  const[form,setForm]=useState({title:"",customerName:"",customerEmail:"",priority:"medium",category:"General",description:""});
+  const[loading,setLoading]=useState(false);
+  const[error,setError]=useState("");
+  const set=(k,v)=>setForm(f=>({...f,[k]:v}));
+  const inp={width:"100%",background:C.surface,border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:13,padding:"10px 12px",boxSizing:"border-box",fontFamily:"inherit",outline:"none"};
+  const lbl={fontSize:11,color:C.muted,fontWeight:600,letterSpacing:"0.07em",textTransform:"uppercase",marginBottom:5,display:"block"};
+  const handleSubmit=async()=>{
+    if(!form.title||!form.customerName||!form.customerEmail){setError("Title, name and email required.");return;}
+    setLoading(true);setError("");
+    try{
+      const{data:cust,error:ce}=await supabase.from("customers").upsert({organization_id:orgId,full_name:form.customerName,email:form.customerEmail},{onConflict:"organization_id,email"}).select("id").single();
+      if(ce)throw ce;
+      const{data:ticket,error:te}=await supabase.from("tickets").insert({organization_id:orgId,customer_id:cust.id,assigned_to:agentId,title:form.title,description:form.description,category:form.category,priority:form.priority,status:"open"}).select().single();
+      if(te)throw te;
+      onCreated(ticket);onClose();
+    }catch(e){setError(e.message);}
+    setLoading(false);
+  };
+  return(
+    <div style={{position:"fixed",inset:0,background:"#00000088",backdropFilter:"blur(4px)",display:"flex",alignItems:"center",justifyContent:"center",zIndex:1000,padding:16}}>
+      <div style={{background:C.card,border:"1px solid "+C.border,borderRadius:16,width:"100%",maxWidth:500,maxHeight:"90vh",overflow:"auto",padding:28}}>
+        <div style={{display:"flex",justifyContent:"space-between",alignItems:"center",marginBottom:24}}>
+          <div style={{fontWeight:800,fontSize:17,color:C.text}}>New Support Ticket</div>
+          <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:22,cursor:"pointer"}}>×</button>
+        </div>
+        {error&&<div style={{background:"#f8717115",color:C.red,borderRadius:8,padding:"8px 12px",fontSize:13,marginBottom:14}}>{error}</div>}
+        <div style={{display:"flex",flexDirection:"column",gap:14}}>
+          <div><label style={lbl}>Issue Title *</label><input style={inp} value={form.title} onChange={e=>set("title",e.target.value)} placeholder="Brief description"/></div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div><label style={lbl}>Customer Name *</label><input style={inp} value={form.customerName} onChange={e=>set("customerName",e.target.value)} placeholder="Full name"/></div>
+            <div><label style={lbl}>Email *</label><input style={inp} value={form.customerEmail} onChange={e=>set("customerEmail",e.target.value)} placeholder="email@co.com"/></div>
+          </div>
+          <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:10}}>
+            <div><label style={lbl}>Category</label><select style={inp} value={form.category} onChange={e=>set("category",e.target.value)}>{categories.map(c=><option key={c}>{c}</option>)}</select></div>
+            <div><label style={lbl}>Priority</label><select style={inp} value={form.priority} onChange={e=>set("priority",e.target.value)}><option value="low">Low</option><option value="medium">Medium</option><option value="high">High</option></select></div>
+          </div>
+          <div><label style={lbl}>Description</label><textarea style={{...inp,resize:"vertical"}} rows={3} value={form.description} onChange={e=>set("description",e.target.value)} placeholder="Details..."/></div>
+          <div style={{display:"flex",gap:10,marginTop:6}}>
+            <button onClick={onClose} style={{flex:1,padding:"11px",background:"transparent",border:"1px solid "+C.border,borderRadius:8,color:C.muted,fontWeight:600,cursor:"pointer",fontSize:13,fontFamily:"inherit"}}>Cancel</button>
+            <button onClick={handleSubmit} disabled={loading} style={{flex:2,padding:"11px",background:C.accent,border:"none",borderRadius:8,color:"#fff",fontWeight:700,cursor:"pointer",fontSize:13,fontFamily:"inherit",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>{loading&&<Spinner/>}Submit Ticket</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TicketDetail({ticket,onClose,onUpdated}){
+  const[notes,setNotes]=useState([]);
+  const[note,setNote]=useState("");
+  const[saving,setSaving]=useState(false);
+  useEffect(()=>{
+    supabase.from("ticket_notes").select("*").eq("ticket_id",ticket.id).order("created_at").then(({data})=>setNotes(data||[]));
+  },[ticket.id]);
+  const updateStatus=async(status)=>{
+    const{data,error}=await supabase.from("tickets").update({status,resolved_at:status==="resolved"?new Date().toISOString():null}).eq("id",ticket.id).select().single();
+    if(!error)onUpdated(data);
+  };
+  const addNote=async()=>{
+    if(!note.trim())return;setSaving(true);
+    const{data}=await supabase.from("ticket_notes").insert({ticket_id:ticket.id,body:note,is_internal:true}).select().single();
+    if(data)setNotes(prev=>[...prev,data]);
+    setNote("");setSaving(false);
+  };
+  return(
+    <div style={{width:360,minWidth:360,background:C.card,borderLeft:"1px solid "+C.border,display:"flex",flexDirection:"column",height:"100%",overflow:"hidden"}}>
+      <div style={{padding:"18px 18px 14px",borderBottom:"1px solid "+C.border,display:"flex",justifyContent:"space-between",alignItems:"flex-start"}}>
+        <div>
+          <div style={{fontFamily:"monospace",fontSize:11,color:C.accent,marginBottom:3}}>TKT-{String(ticket.ticket_number).padStart(4,"0")}</div>
+          <div style={{fontWeight:700,fontSize:15,color:C.text,lineHeight:1.3,maxWidth:280}}>{ticket.title}</div>
+        </div>
+        <button onClick={onClose} style={{background:"none",border:"none",color:C.muted,fontSize:20,cursor:"pointer"}}>×</button>
+      </div>
+      <div style={{flex:1,overflowY:"auto",padding:18,display:"flex",flexDirection:"column",gap:16}}>
+        <div style={{background:C.surface,borderRadius:10,padding:12,border:"1px solid "+C.border}}>
+          <div style={{fontSize:10,color:C.muted,marginBottom:8,fontWeight:700,textTransform:"uppercase"}}>Customer</div>
+          <div style={{fontWeight:600,color:C.text,fontSize:14}}>{ticket.customer_name||"—"}</div>
+          <div style={{fontSize:12,color:C.muted,marginTop:2}}>{ticket.customer_email||"—"}</div>
+        </div>
+        {ticket.description&&<div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:6,fontWeight:700,textTransform:"uppercase"}}>Description</div>
+          <div style={{fontSize:13,color:C.soft,lineHeight:1.7,background:C.surface,borderRadius:10,padding:12,border:"1px solid "+C.border}}>{ticket.description}</div>
+        </div>}
+        <div style={{display:"grid",gridTemplateColumns:"1fr 1fr",gap:8}}>
+          {[["Category",ticket.category],["Priority",priorityConfig[ticket.priority]?.label],["Created",timeAgo(ticket.created_at)]].map(([l,v])=>(
+            <div key={l} style={{background:C.surface,borderRadius:8,padding:"9px 11px",border:"1px solid "+C.border}}>
+              <div style={{fontSize:10,color:C.muted,marginBottom:2,textTransform:"uppercase"}}>{l}</div>
+              <div style={{fontSize:13,color:C.text,fontWeight:600}}>{v}</div>
+            </div>
+          ))}
+        </div>
+        <div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:8,fontWeight:700,textTransform:"uppercase"}}>Update Status</div>
+          <div style={{display:"flex",gap:6}}>
+            {["open","in-progress","resolved"].map(s=>(
+              <button key={s} onClick={()=>updateStatus(s)} style={{flex:1,padding:"7px 4px",borderRadius:8,border:"1px solid "+(ticket.status===s?statusConfig[s].color:C.border),background:ticket.status===s?statusConfig[s].bg:"transparent",color:ticket.status===s?statusConfig[s].color:C.muted,fontSize:11,fontWeight:700,cursor:"pointer",fontFamily:"inherit"}}>{statusConfig[s].label}</button>
+            ))}
+          </div>
+        </div>
+        <div>
+          <div style={{fontSize:10,color:C.muted,marginBottom:8,fontWeight:700,textTransform:"uppercase"}}>Notes</div>
+          {notes.map(n=>(
+            <div key={n.id} style={{background:C.surface,borderRadius:8,padding:"9px 11px",border:"1px solid "+C.border,fontSize:13,color:C.text,marginBottom:8}}>
+              <div>{n.body}</div>
+              <div style={{fontSize:11,color:C.muted,marginTop:4}}>{timeAgo(n.created_at)}</div>
+            </div>
+          ))}
+          <textarea value={note} onChange={e=>setNote(e.target.value)} placeholder="Add a note..." rows={3} style={{width:"100%",background:C.surface,border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:13,padding:"9px 11px",resize:"none",boxSizing:"border-box",fontFamily:"inherit",outline:"none"}}/>
+          <button onClick={addNote} disabled={saving} style={{marginTop:8,width:"100%",background:C.accent,border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,padding:"10px",cursor:"pointer",fontFamily:"inherit"}}>{saving?"Saving...":"Save Note"}</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function App(){
+  const[session,setSession]=useState(null);
+  const[agent,setAgent]=useState(null);
+  const[org,setOrg]=useState(null);
+  const[tickets,setTickets]=useState([]);
+  const[selected,setSelected]=useState(null);
+  const[loading,setLoading]=useState(true);
+  const[showNew,setShowNew]=useState(false);
+  const[filter,setFilter]=useState("all");
+  const[search,setSearch]=useState("");
+  const[view,setView]=useState("dashboard");
+  const[toast,setToast]=useState({msg:"",type:"success"});
+
+  const showToast=(msg,type="success")=>{setToast({msg,type});setTimeout(()=>setToast({msg:"",type:"success"}),3000);};
+
+  useEffect(()=>{
+    supabase.auth.getSession().then(({data})=>{
+      setSession(data.session);
+      if(data.session)loadAgent(data.session.user.id);
+      else setLoading(false);
+    });
+    const{data:{subscription}}=supabase.auth.onAuthStateChange((_e,s)=>{
+      setSession(s);
+      if(s)loadAgent(s.user.id);
+      else{setAgent(null);setOrg(null);setLoading(false);}
+    });
+    return()=>subscription.unsubscribe();
+  },[]);
+
+  const loadAgent=async(userId)=>{
+    const{data}=await supabase.from("agents").select("*, organizations(*)").eq("user_id",userId).single();
+    if(data){
+      setAgent(data);setOrg(data.organizations);
+      const{data:t}=await supabase.from("tickets_full").select("*").eq("organization_id",data.organizations.id).order("created_at",{ascending:false});
+      setTickets(t||[]);
+    }
+    setLoading(false);
+  };
+
+  const filtered=tickets.filter(t=>{
+    const mf=filter==="all"||t.status===filter||t.priority===filter;
+    const ms=!search||t.title?.toLowerCase().includes(search.toLowerCase())||t.customer_name?.toLowerCase().includes(search.toLowerCase());
+    return mf&&ms;
+  });
+
+  const stats={
+    total:tickets.length,
+    open:tickets.filter(t=>t.status==="open").length,
+    inProgress:tickets.filter(t=>t.status==="in-progress").length,
+    resolved:tickets.filter(t=>t.status==="resolved").length,
+    urgent:tickets.filter(t=>t.priority==="high"&&t.status!=="resolved").length
+  };
+
+  if(loading)return(<div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center"}}><div style={{textAlign:"center",color:C.text,fontFamily:"sans-serif"}}><div style={{fontSize:28,fontWeight:800,marginBottom:16}}><span style={{color:C.accent}}>⬡</span> DeskFlow</div><Spinner/></div></div>);
+  if(!session)return <AuthScreen/>;
+  if(!agent)return(<div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",color:C.text,fontFamily:"sans-serif",flexDirection:"column",gap:16}}><div style={{fontSize:18,fontWeight:700}}>Setting up...</div><button onClick={()=>supabase.auth.signOut()} style={{background:C.surface,border:"1px solid "+C.border,color:C.soft,borderRadius:8,padding:"8px 16px",cursor:"pointer"}}>Sign out</button></div>);
+
+  const navBtn=(label,v)=>(<button onClick={()=>setView(v)} style={{background:view===v?C.accentGlow:"transparent",border:view===v?"1px solid #4f8ef740":"1px solid transparent",color:view===v?C.accent:C.muted,borderRadius:8,padding:"7px 14px",fontWeight:700,fontSize:13,cursor:"pointer",fontFamily:"inherit"}}>{label}</button>);
+
+  return(
+    <div style={{background:C.bg,minHeight:"100vh",color:C.text,fontFamily:"sans-serif",display:"flex",flexDirection:"column"}}>
+      <style>{"@keyframes spin{to{transform:rotate(360deg)}}*{box-sizing:border-box}"}</style>
+      <div style={{borderBottom:"1px solid "+C.border,padding:"0 24px",display:"flex",alignItems:"center",justifyContent:"space-between",height:54,background:C.surface,flexShrink:0}}>
+        <div style={{display:"flex",alignItems:"center",gap:16}}>
+          <div style={{fontWeight:800,fontSize:17,color:C.text}}><span style={{color:C.accent}}>⬡</span> DeskFlow</div>
+          <div style={{display:"flex",gap:4}}>{navBtn("Dashboard","dashboard")}{navBtn("Tickets","tickets")}</div>
+        </div>
+        <div style={{display:"flex",alignItems:"center",gap:10}}>
+          {stats.urgent>0&&<div style={{background:"#f8717118",border:"1px solid #f8717140",color:C.red,borderRadius:20,padding:"3px 10px",fontSize:12,fontWeight:700}}>⚠ {stats.urgent} urgent</div>}
+          <button onClick={()=>setShowNew(true)} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:13,padding:"7px 14px",cursor:"pointer",fontFamily:"inherit"}}>+ New Ticket</button>
+          <div style={{width:32,height:32,borderRadius:"50%",background:C.accentGlow,border:"1px solid #4f8ef740",display:"flex",alignItems:"center",justifyContent:"center",fontSize:13,fontWeight:700,color:C.accent,cursor:"pointer"}} onClick={()=>supabase.auth.signOut()}>{agent.full_name?.[0]?.toUpperCase()||"A"}</div>
+        </div>
+      </div>
+
+      <div style={{flex:1,overflow:"hidden"}}>
+        {view==="dashboard"&&(
+          <div style={{padding:"
