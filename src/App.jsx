@@ -17,29 +17,59 @@ const[m,sm]=useState("login");
 const[e,se]=useState("");const[p,sp]=useState("");const[n,sn]=useState("");
 const[load,sl]=useState(false);const[err,ser]=useState("");const[msg,smg]=useState("");
 const inp={width:"100%",background:C.surface,border:"1px solid "+C.border,borderRadius:8,color:C.text,fontSize:14,padding:"11px 13px",boxSizing:"border-box",fontFamily:"inherit",outline:"none"};
-async function go(){ser("");sl(true);
-try{if(m==="login"){const{error}=await sb.auth.signInWithPassword({email:e,password:p});if(error)throw error;}
-else{const{data,error}=await sb.auth.signUp({email:e,password:p});if(error)throw error;
-if(data.user){const r=await sb.from("organizations").select("id").limit(1).single();
-if(r.data?.id)await sb.from("agents").insert({user_id:data.user.id,organization_id:r.data.id,full_name:n||e.split("@")[0],email:e,role:"admin"});
-smg("Done! Check email then sign in.");sm("login");}}}
-catch(x){ser(x.message);}sl(false);}
+async function go(){
+ser("");sl(true);
+try{
+if(m==="login"){
+const{data,error}=await sb.auth.signInWithPassword({email:e,password:p});
+if(error){
+ser("Wrong email or password. Please check and try again.");
+sl(false);return;
+}
+}else{
+const{data,error}=await sb.auth.signUp({email:e,password:p,options:{data:{full_name:n||e.split("@")[0]}}});
+if(error){
+if(error.message.toLowerCase().includes("already")){
+ser("This email is already registered. Please sign in instead.");
+}else{
+ser(error.message);
+}
+sl(false);return;
+}
+if(data.user){
+const r=await sb.from("organizations").select("id").limit(1).single();
+if(r.data?.id){
+await sb.from("agents").insert({user_id:data.user.id,organization_id:r.data.id,full_name:n||e.split("@")[0],email:e,role:"admin"});
+}
+smg("Account created! You can now sign in.");
+sm("login");
+}
+}
+}catch(x){ser("Something went wrong. Please try again.");}
+sl(false);
+}
 return<div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",padding:20,fontFamily:"sans-serif"}}>
 <style>{"@keyframes spin{to{transform:rotate(360deg)}}"}</style>
 <div style={{width:"100%",maxWidth:380,background:C.card,border:"1px solid "+C.border,borderRadius:16,padding:32}}>
-<div style={{textAlign:"center",marginBottom:28}}><div style={{fontSize:26,fontWeight:800,color:C.text}}><span style={{color:C.accent}}>⬡</span> DeskFlow</div>
-<div style={{fontSize:13,color:C.muted,marginTop:4}}>{m==="login"?"Sign in":"Create account"}</div></div>
+<div style={{textAlign:"center",marginBottom:28}}>
+<div style={{fontSize:26,fontWeight:800,color:C.text}}><span style={{color:C.accent}}>⬡</span> DeskFlow</div>
+<div style={{fontSize:13,color:C.muted,marginTop:4}}>{m==="login"?"Sign in to your account":"Create a new account"}</div>
+</div>
 {msg&&<div style={{background:"#34d39915",color:C.green,borderRadius:6,padding:"8px 12px",fontSize:13,marginBottom:12}}>{msg}</div>}
 {err&&<div style={{background:"#f8717115",color:C.red,borderRadius:6,padding:"8px 12px",fontSize:13,marginBottom:12}}>{err}</div>}
 <div style={{display:"flex",flexDirection:"column",gap:12}}>
 {m==="signup"&&<input style={inp} placeholder="Full name" value={n} onChange={x=>sn(x.target.value)}/>}
-<input style={inp} type="email" placeholder="Email" value={e} onChange={x=>se(x.target.value)}/>
-<input style={inp} type="password" placeholder="Password" value={p} onChange={x=>sp(x.target.value)} onKeyDown={x=>x.key==="Enter"&&go()}/>
+<input style={inp} type="email" placeholder="Email address" value={e} onChange={x=>se(x.target.value)}/>
+<input style={inp} type="password" placeholder="Password (min 6 characters)" value={p} onChange={x=>sp(x.target.value)} onKeyDown={x=>x.key==="Enter"&&go()}/>
 <button onClick={go} disabled={load} style={{background:C.accent,border:"none",borderRadius:8,color:"#fff",fontWeight:700,fontSize:14,padding:"12px",cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",gap:8}}>
 {load&&<Spin/>}{m==="login"?"Sign In":"Create Account"}</button>
-<div style={{textAlign:"center",fontSize:13,color:C.muted}}>{m==="login"?"No account? ":"Have one? "}
-<span onClick={()=>{sm(m==="login"?"signup":"login");ser("");smg("");}} style={{color:C.accent,cursor:"pointer",fontWeight:600}}>{m==="login"?"Sign up":"Sign in"}</span></div>
-</div></div></div>;}
+<div style={{textAlign:"center",fontSize:13,color:C.muted}}>
+{m==="login"?"No account? ":"Already have one? "}
+<span onClick={()=>{sm(m==="login"?"signup":"login");ser("");smg("");}} style={{color:C.accent,cursor:"pointer",fontWeight:600}}>{m==="login"?"Sign up free":"Sign in"}</span>
+</div>
+</div>
+</div>
+</div>;}
 
 export default function App(){
 const[sess,ss]=useState(null);const[agent,sa]=useState(null);const[org,so]=useState(null);
@@ -56,7 +86,7 @@ const rows=tix.filter(t=>(filt==="all"||t.status===filt||t.priority===filt)&&(!q
 const stats={tot:tix.length,open:tix.filter(t=>t.status==="open").length,ip:tix.filter(t=>t.status==="in-progress").length,res:tix.filter(t=>t.status==="resolved").length,urg:tix.filter(t=>t.priority==="high"&&t.status!=="resolved").length};
 if(load)return<div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",color:C.text,fontFamily:"sans-serif"}}><Spin/></div>;
 if(!sess)return<Login/>;
-if(!agent)return<div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:C.text,fontFamily:"sans-serif"}}><div>Setting up...</div><button onClick={()=>sb.auth.signOut()} style={{background:C.surface,border:"1px solid "+C.border,color:C.soft,borderRadius:6,padding:"6px 14px",cursor:"pointer"}}>Sign out</button></div>;
+if(!agent)return<div style={{minHeight:"100vh",background:C.bg,display:"flex",alignItems:"center",justifyContent:"center",flexDirection:"column",gap:12,color:C.text,fontFamily:"sans-serif"}}><div style={{fontSize:16,fontWeight:600}}>Setting up your account...</div><div style={{fontSize:13,color:C.muted,marginTop:4}}>This only takes a moment</div><button onClick={()=>sb.auth.signOut()} style={{marginTop:16,background:C.surface,border:"1px solid "+C.border,color:C.soft,borderRadius:6,padding:"8px 16px",cursor:"pointer",fontSize:13}}>Sign out</button></div>;
 return<div style={{background:C.bg,minHeight:"100vh",color:C.text,fontFamily:"sans-serif",display:"flex",flexDirection:"column"}}>
 <style>{"@keyframes spin{to{transform:rotate(360deg)}}*{box-sizing:border-box}"}</style>
 <div style={{height:52,background:C.surface,borderBottom:"1px solid "+C.border,display:"flex",alignItems:"center",justifyContent:"space-between",padding:"0 20px",flexShrink:0}}>
@@ -73,7 +103,7 @@ return<div style={{background:C.bg,minHeight:"100vh",color:C.text,fontFamily:"sa
 {view==="dash"&&<div style={{padding:24,maxWidth:900,margin:"0 auto",overflowY:"auto"}}>
 <div style={{marginBottom:20}}><div style={{fontSize:18,fontWeight:800,color:C.text}}>Hi {agent.full_name?.split(" ")[0]} 👋</div><div style={{color:C.muted,fontSize:12,marginTop:2}}>{org?.name}</div></div>
 <div style={{display:"flex",gap:10,flexWrap:"wrap",marginBottom:24}}>
-{[["Total",stats.tot,"🎫"],[" Open",stats.open,"📬"],["In Progress",stats.ip,"⚙️"],["Resolved",stats.res,"✅"]].map(([l,v,i])=>(
+{[["Total",stats.tot,"🎫"],["Open",stats.open,"📬"],["In Progress",stats.ip,"⚙️"],["Resolved",stats.res,"✅"]].map(([l,v,i])=>(
 <div key={l} style={{background:C.card,border:"1px solid "+C.border,borderRadius:10,padding:"14px 18px",display:"flex",alignItems:"center",gap:12,flex:1,minWidth:120}}>
 <span style={{fontSize:20}}>{i}</span><div><div style={{fontSize:22,fontWeight:800,color:C.text}}>{v}</div><div style={{fontSize:11,color:C.muted,fontWeight:600}}>{l}</div></div></div>))}
 </div>
@@ -84,7 +114,7 @@ return<div style={{background:C.bg,minHeight:"100vh",color:C.text,fontFamily:"sa
 <div><div style={{fontWeight:600,fontSize:13,color:C.text}}>{t.title}</div><div style={{fontSize:11,color:C.muted}}>{t.customer_name}</div></div>
 <div style={{display:"flex",gap:8,alignItems:"center"}}><Badge s={t.status}/><span style={{fontSize:11,color:PC[t.priority]?.color,fontWeight:600}}>{PC[t.priority]?.label}</span></div>
 </div>))}
-{tix.filter(t=>t.status!=="resolved").length===0&&<div style={{padding:24,textAlign:"center",color:C.muted}}>No open tickets!</div>}
+{tix.filter(t=>t.status!=="resolved").length===0&&<div style={{padding:24,textAlign:"center",color:C.muted}}>🎉 No open tickets!</div>}
 </div></div>}
 {view==="tickets"&&<div style={{display:"flex",height:"calc(100vh - 52px)",overflow:"hidden"}}>
 <div style={{flex:1,display:"flex",flexDirection:"column",overflow:"hidden"}}>
@@ -95,6 +125,7 @@ return<div style={{background:C.bg,minHeight:"100vh",color:C.text,fontFamily:"sa
 <span style={{marginLeft:"auto",fontSize:11,color:C.muted}}>{rows.length} tickets</span>
 </div>
 <div style={{flex:1,overflowY:"auto"}}>
+{rows.length===0&&<div style={{padding:40,textAlign:"center",color:C.muted}}>No tickets found</div>}
 {rows.map(t=>(
 <div key={t.id} onClick={()=>ssel(t)} style={{padding:"12px 16px",borderBottom:"1px solid "+C.border,cursor:"pointer",display:"grid",gridTemplateColumns:"1fr auto",gap:12,borderLeft:sel?.id===t.id?"3px solid "+C.accent:"3px solid transparent",background:sel?.id===t.id?C.accent+"08":"transparent"}} onMouseEnter={x=>{if(sel?.id!==t.id)x.currentTarget.style.background=C.surface;}} onMouseLeave={x=>{if(sel?.id!==t.id)x.currentTarget.style.background="transparent";}}>
 <div><div style={{fontWeight:600,fontSize:13,color:C.text}}>{t.title}</div>
